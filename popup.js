@@ -66,9 +66,6 @@ document.getElementById("btn").addEventListener("click", () => {
 
         const data = results[0].result;
 
-        // Log the data for debugging
-        console.log("Extracted data:", data);
-
         // Convert data to JSON string
         const content = JSON.stringify(data, null, 2);
 
