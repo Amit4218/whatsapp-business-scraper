@@ -1,6 +1,6 @@
 // Add an event listener to the button
 document.getElementById("btn").addEventListener("click", () => {
-  console.log("Button clicked!");
+  // console.log("Button clicked!");
 
   // Query the active tab
   chrome.tabs.query({ active: true, currentWindow: true }, (tabs) => {
@@ -61,18 +61,18 @@ document.getElementById("btn").addEventListener("click", () => {
           const phoneNo2Text = getTextByXPath(phoneNo2);
           const location2Text = getTextByXPath(location2);
 
-          console.log({
-            phone: phoneText,
-            name: nameText,
-            productType: productTypeText,
-            address: addressText,
-            email: emailText,
-            location: locationText,
-            link1: link1Text,
-            link2: link2Text,
-            phoneNo2: phoneNo2Text,
-            location2: location2Text,
-          });
+          // console.log({
+          //   phone: phoneText,
+          //   name: nameText,
+          //   productType: productTypeText,
+          //   address: addressText,
+          //   email: emailText,
+          //   location: locationText,
+          //   link1: link1Text,
+          //   link2: link2Text,
+          //   phoneNo2: phoneNo2Text,
+          //   location2: location2Text,
+          // });
 
           // Return all the results as an object
           return {
