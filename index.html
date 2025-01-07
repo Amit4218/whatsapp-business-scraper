@@ -8,21 +8,36 @@
       body {
         min-height: 40px;
         min-width: 100px;
-        background-color: black;
+        background-color: #2a2727;
+        padding: 2px;
       }
-      #btn{
-        border-radius: 5px;
-        background-color: yellowgreen;
+      #btn {
+        background: rgb(66, 63, 63);
+        color: white;
+        margin-bottom: 5px;
         outline: none;
-        color: black;
-        font-weight: bolder;
-        font-size: medium;
-        font-family: 'Times New Roman', Times, serif;
+        border: none;
+        font-size: small;
+        font-family: "Times New Roman", Times, serif;
+        font-weight: 900;
+
+        border-radius: 2px;
+      }
+      #btn2 {
+        background: rgb(66, 63, 63);
+        color: white;
+        outline: none;
+        border: none;
+        font-size: small;
+        font-family: "Times New Roman", Times, serif;
+        font-weight: 900;
+        border-radius: 2px;
       }
     </style>
   </head>
   <body>
     <button id="btn">click me to scrape</button>
+    <button id="btn2">scrape product data</button>
     <script src="./popup.js"></script>
   </body>
 </html>
