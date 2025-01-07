@@ -86,7 +86,6 @@ document.getElementById("btn").addEventListener("click", () => {
   });
 });
 
-
 // for product image, product name and product price
 
 document.getElementById("btn2").addEventListener("click", () => {
@@ -96,7 +95,8 @@ document.getElementById("btn2").addEventListener("click", () => {
     chrome.scripting.executeScript({
       target: { tabId: activeTab.id },
       func: () => {
-        function getTextByXPath() {
+        // Define the getTextByXPath function
+        function getTextByXPath(xpath) {
           const node = document.evaluate(
             xpath,
             document,
@@ -107,54 +107,101 @@ document.getElementById("btn2").addEventListener("click", () => {
           return node ? node.textContent.trim() : "N/A";
         }
 
-        // Get the scrollable container using XPath
-        let scrollBody =
+        // Defining xpath for the scroll body
+        let scrollBox =
           "/html/body/div[1]/div/div/div[3]/div/div[5]/span/div/span/div/div[2]";
-        let container = getTextByXPath(scrollBody)
+        let body = document.evaluate(
+          scrollBox,
+          document,
+          null,
+          XPathResult.FIRST_ORDERED_NODE_TYPE,
+          null
+        ).singleNodeValue;
 
-        function dragScrollbarToBottomWithDynamicLoading() {
-          if (!container) {
-            console.error("Scrollable container not found.");
-            return;
+        // Ensure the body element is scrollable
+        if (body && body.scrollTop !== undefined) {
+          // Return a Promise that resolves after scrolling
+          function scroll() {
+            return new Promise((resolve, reject) => {
+              try {
+                let scrollInterval = setInterval(() => {
+                  body.scrollTop += 200;
+                }, 100);
+
+                setTimeout(() => {
+                  clearInterval(scrollInterval);
+                  resolve(); // Resolve after scrolling is done
+                }, 15000); // Scroll for 15 seconds
+              } catch (error) {
+                reject("Can't scroll: " + error);
+              }
+            });
           }
 
-          let lastScrollHeight = container.scrollHeight; // Track the scrollable height
-          let noContentTimer = null; // Timer to detect end of content loading
+          // Wait for scrolling to finish before scraping data
+          scroll()
+            .then(() => {
+              // Scrape product data after scrolling
+              const products = Array.from(
+                document.querySelectorAll('div[tabindex="0"][role="button"]')
+              ).map((item) => {
+                const titleElement = item.querySelector("span[title]");
+                const descriptionElement =
+                  item.querySelector("div._ak8k ._ao3e");
+                const imageElement = item.querySelector("div[style]");
 
-          let scrollInterval = setInterval(() => {
-            // Scroll down by 100 pixels
-            container.scrollTop += 100;
+                // Custom XPath to target the price
+                const priceXPath =
+                  './/span[contains(@class, "x1iyjqo2") and contains(text(), "₹")]';
 
-            // Check if more content has loaded
-            if (container.scrollHeight > lastScrollHeight) {
-              // Update the last scroll height
-              lastScrollHeight = container.scrollHeight;
+                // Execute the XPath expression
+                const priceElement = document.evaluate(
+                  priceXPath,
+                  item,
+                  null,
+                  XPathResult.FIRST_ORDERED_NODE_TYPE,
+                  null
+                ).singleNodeValue;
 
-              // Reset the timer since new content loaded
-              clearTimeout(noContentTimer);
-            }
+                const price = priceElement
+                  ? priceElement.innerText.trim()
+                  : "No price available";
+                const title = titleElement
+                  ? titleElement.getAttribute("title")
+                  : "No title available";
+                const description = descriptionElement
+                  ? descriptionElement.innerText.trim()
+                  : "No description available";
+                const imageUrl = imageElement
+                  ? (imageElement.style.backgroundImage.match(
+                      /url\("(.+)"\)/
+                    ) || [])[1]
+                  : "No image available";
 
-            // If we reach the bottom and no new content is loaded, set a timer to stop scrolling
-            if (
-              container.scrollTop + container.clientHeight >=
-              container.scrollHeight
-            ) {
-              if (!noContentTimer) {
-                noContentTimer = setTimeout(() => {
-                  console.log("No more content to load. Stopping scrolling.");
-                  clearInterval(scrollInterval); // Stop scrolling
-                }, 2000); // Wait 2 seconds to ensure all content is loaded
-              }
-            } else {
-              // Clear the timer if scrolling continues
-              clearTimeout(noContentTimer);
-            }
-          }, 100); // Scroll every 100 milliseconds
+                return { title, description, price, imageUrl };
+              });
+
+              // Create a JSON file from the products data
+              const jsonData = JSON.stringify(products, null, 2);
+              const jsonFile = new Blob([jsonData], {
+                type: "application/json",
+              });
+              const jsonFileURL = URL.createObjectURL(jsonFile);
+
+              // Download the JSON data as a .txt file
+              const downloadJson = document.createElement("a");
+              downloadJson.href = jsonFileURL;
+              downloadJson.download = "products_data.txt";
+              downloadJson.click();
+              URL.revokeObjectURL(jsonFileURL);
+            })
+            .catch((error) => {
+              console.error("Error:", error);
+            });
         }
-
-        // Start the enhanced scrolling
-        dragScrollbarToBottomWithDynamicLoading();
       },
     });
   });
 });
+
+
