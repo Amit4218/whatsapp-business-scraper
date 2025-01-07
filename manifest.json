@@ -16,5 +16,5 @@
     "48": "icons/48_img.png",
     "128": "icons/128_img.png"
   },
-  "permissions": ["activeTab", "scripting"]
+  "permissions": ["activeTab", "scripting","storage"]
 }
