@@ -2,7 +2,7 @@
   "manifest_version": 3,
   "name": "Scrape",
   "version": "1.0.0",
-  "description": "Scraping data from whatsapp business",
+  "description": "Scraping data from WhatsApp Business",
   "action": {
     "default_popup": "index.html",
     "default_icon": {
@@ -16,5 +16,11 @@
     "48": "icons/48_img.png",
     "128": "icons/128_img.png"
   },
-  "permissions": ["activeTab", "scripting","storage"]
+  "permissions": ["activeTab", "scripting", "storage"],
+  "web_accessible_resources": [
+    {
+      "resources": ["scripts/jszip.min.js"],
+      "matches": ["<all_urls>"]
+    }
+  ]
 }
