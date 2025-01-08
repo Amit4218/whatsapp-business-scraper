@@ -92,116 +92,125 @@ document.getElementById("btn2").addEventListener("click", () => {
   chrome.tabs.query({ active: true, currentWindow: true }, (tabs) => {
     const activeTab = tabs[0];
 
-    chrome.scripting.executeScript({
-      target: { tabId: activeTab.id },
-      func: () => {
-        // Define the getTextByXPath function
-        function getTextByXPath(xpath) {
-          const node = document.evaluate(
-            xpath,
-            document,
+    chrome.scripting.executeScript(
+      {
+        target: { tabId: activeTab.id },
+        files: ["scripts/jszip.min.js"], // Dynamically load JSZip
+      },
+      () => {
+        chrome.scripting.executeScript({
+          target: { tabId: activeTab.id },
+          func: scrapeAndDownload,
+        });
+      }
+    );
+  });
+});
+
+function scrapeAndDownload() {
+  
+  // Define the scrolling and scraping logic
+  function getTextByXPath(xpath) {
+    const node = document.evaluate(
+      xpath,
+      document,
+      null,
+      XPathResult.FIRST_ORDERED_NODE_TYPE,
+      null
+    ).singleNodeValue;
+    return node ? node.textContent.trim() : "N/A";
+  }
+
+  const scrollBoxXPath =
+    "/html/body/div[1]/div/div/div[3]/div/div[5]/span/div/span/div/div[2]";
+  const body = document.evaluate(
+    scrollBoxXPath,
+    document,
+    null,
+    XPathResult.FIRST_ORDERED_NODE_TYPE,
+    null
+  ).singleNodeValue;
+
+  if (body && body.scrollTop !== undefined) {
+    const scroll = () =>
+      new Promise((resolve) => {
+        const scrollInterval = setInterval(() => {
+          body.scrollTop += 200;
+        }, 100);
+
+        setTimeout(() => {
+          clearInterval(scrollInterval);
+          resolve();
+        }, 15000); // Scroll for 15 seconds
+      });
+
+    scroll()
+      .then(() => {
+        const products = Array.from(
+          document.querySelectorAll('div[tabindex="0"][role="button"]')
+        ).map((item) => {
+          const titleElement = item.querySelector("span[title]");
+          const descriptionElement = item.querySelector("div._ak8k ._ao3e");
+          const imageElement = item.querySelector("div[style]");
+
+          const priceXPath =
+            './/span[contains(@class, "x1iyjqo2") and contains(text(), "₹")]';
+          const priceElement = document.evaluate(
+            priceXPath,
+            item,
             null,
             XPathResult.FIRST_ORDERED_NODE_TYPE,
             null
           ).singleNodeValue;
-          return node ? node.textContent.trim() : "N/A";
-        }
 
-        // Defining xpath for the scroll body
-        let scrollBox =
-          "/html/body/div[1]/div/div/div[3]/div/div[5]/span/div/span/div/div[2]";
-        let body = document.evaluate(
-          scrollBox,
-          document,
-          null,
-          XPathResult.FIRST_ORDERED_NODE_TYPE,
-          null
-        ).singleNodeValue;
+          const title = titleElement
+            ? titleElement.getAttribute("title")
+            : "No title available";
+          const description = descriptionElement
+            ? descriptionElement.innerText.trim()
+            : "No description available";
+          const price = priceElement
+            ? priceElement.innerText.trim()
+            : "No price available";
+          const imageUrl = imageElement
+            ? (imageElement.style.backgroundImage.match(/url\("(.+)"\)/) ||
+                [])[1]
+            : "No image available";
 
-        // Ensure the body element is scrollable
-        if (body && body.scrollTop !== undefined) {
-          // Return a Promise that resolves after scrolling
-          function scroll() {
-            return new Promise((resolve, reject) => {
-              try {
-                let scrollInterval = setInterval(() => {
-                  body.scrollTop += 200;
-                }, 100);
+          return { title, description, price, imageUrl };
+        });
 
-                setTimeout(() => {
-                  clearInterval(scrollInterval);
-                  resolve(); // Resolve after scrolling is done
-                }, 15000); // Scroll for 15 seconds
-              } catch (error) {
-                reject("Can't scroll: " + error);
-              }
-            });
+        const zip = new JSZip();
+        const jsonData = JSON.stringify(products, null, 2);
+
+        // Add JSON data to ZIP
+        zip.file("products_data.txt", jsonData);
+
+        // Download images and add to ZIP
+        const imagePromises = products.map((product, index) => {
+          if (product.imageUrl !== "No image available") {
+            return fetch(product.imageUrl)
+              .then((response) => response.blob())
+              .then((blob) => {
+                const fileName = `image_${index + 1}.png`;
+                zip.file(fileName, blob);
+              })
+              .catch((error) =>
+                console.error("Error downloading image:", error)
+              );
           }
+        });
 
-          // Wait for scrolling to finish before scraping data
-          scroll()
-            .then(() => {
-              // Scrape product data after scrolling
-              const products = Array.from(
-                document.querySelectorAll('div[tabindex="0"][role="button"]')
-              ).map((item) => {
-                const titleElement = item.querySelector("span[title]");
-                const descriptionElement =
-                  item.querySelector("div._ak8k ._ao3e");
-                const imageElement = item.querySelector("div[style]");
-
-                // Custom XPath to target the price
-                const priceXPath =
-                  './/span[contains(@class, "x1iyjqo2") and contains(text(), "₹")]';
-
-                // Execute the XPath expression
-                const priceElement = document.evaluate(
-                  priceXPath,
-                  item,
-                  null,
-                  XPathResult.FIRST_ORDERED_NODE_TYPE,
-                  null
-                ).singleNodeValue;
-
-                const price = priceElement
-                  ? priceElement.innerText.trim()
-                  : "No price available";
-                const title = titleElement
-                  ? titleElement.getAttribute("title")
-                  : "No title available";
-                const description = descriptionElement
-                  ? descriptionElement.innerText.trim()
-                  : "No description available";
-                const imageUrl = imageElement
-                  ? (imageElement.style.backgroundImage.match(
-                      /url\("(.+)"\)/
-                    ) || [])[1]
-                  : "No image available";
-
-                return { title, description, price, imageUrl };
-              });
-
-              // Create a JSON file from the products data
-              const jsonData = JSON.stringify(products, null, 2);
-              const jsonFile = new Blob([jsonData], {
-                type: "application/json",
-              });
-              const jsonFileURL = URL.createObjectURL(jsonFile);
-
-              // Download the JSON data as a .txt file
-              const downloadJson = document.createElement("a");
-              downloadJson.href = jsonFileURL;
-              downloadJson.download = "products_data.txt";
-              downloadJson.click();
-              URL.revokeObjectURL(jsonFileURL);
-            })
-            .catch((error) => {
-              console.error("Error:", error);
-            });
-        }
-      },
-    });
-  });
-});
-
-
+        // Generate ZIP after all images are downloaded
+        Promise.all(imagePromises).then(() => {
+          zip.generateAsync({ type: "blob" }).then((content) => {
+            const downloadLink = document.createElement("a");
+            downloadLink.href = URL.createObjectURL(content);
+            downloadLink.download = "data_and_images.zip";
+            downloadLink.click();
+          });
+        });
+      })
+      .catch((error) => console.error("Error:", error));
+  }
+}
