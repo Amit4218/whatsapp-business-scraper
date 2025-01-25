@@ -108,7 +108,6 @@ document.getElementById("btn2").addEventListener("click", () => {
 });
 
 function scrapeAndDownload() {
-  
   // Define the scrolling and scraping logic
   function getTextByXPath(xpath) {
     const node = document.evaluate(
@@ -165,34 +164,41 @@ function scrapeAndDownload() {
 
           const title = titleElement
             ? titleElement.getAttribute("title")
-            : "No title available";
+            : "Na";
           const description = descriptionElement
             ? descriptionElement.innerText.trim()
-            : "No description available";
-          const price = priceElement
-            ? priceElement.innerText.trim()
-            : "No price available";
+            : "Na";
+          const price = priceElement ? priceElement.innerText.trim() : 0;
           const imageUrl = imageElement
             ? (imageElement.style.backgroundImage.match(/url\("(.+)"\)/) ||
                 [])[1]
-            : "No image available";
+            : "Na";
 
-          return { title, description, price, imageUrl };
+          const imageName = title;
+
+          return { title, description, price, imageUrl, imageName };
         });
 
+        const data = products.map((product) => ({
+          title: product.title,
+          description: product.description,
+          price: product.price,
+          imageName: product.imageName,
+        }));
+
         const zip = new JSZip();
-        const jsonData = JSON.stringify(products, null, 2);
+        const jsonData = JSON.stringify(data, null, 2);
 
         // Add JSON data to ZIP
-        zip.file("products_data.txt", jsonData);
+        zip.file("0_products_data.txt", jsonData);
 
         // Download images and add to ZIP
         const imagePromises = products.map((product, index) => {
-          if (product.imageUrl !== "No image available") {
+          if (product.imageUrl !== "Na") {
             return fetch(product.imageUrl)
               .then((response) => response.blob())
               .then((blob) => {
-                const fileName = `image_${index + 1}.png`;
+                const fileName = `${product.title}.png`;
                 zip.file(fileName, blob);
               })
               .catch((error) =>
@@ -200,6 +206,25 @@ function scrapeAndDownload() {
               );
           }
         });
+
+        // Read the 0_products_data.txt file and filter out unwanted entries
+        zip
+          .file("0_products_data.txt")
+          .async("string")
+          .then((data) => {
+            const products = JSON.parse(data);
+            const filteredProducts = products.filter(
+              (product) =>
+                product.title !== "Na" ||
+                product.description !== "Na" ||
+                product.price !== 0 ||
+                product.imageName !== "Na"
+            );
+
+            // Update the JSON data in the ZIP file
+            const updatedJsonData = JSON.stringify(filteredProducts, null, 2);
+            zip.file("0_products_data.txt", updatedJsonData);
+          });
 
         // Generate ZIP after all images are downloaded
         Promise.all(imagePromises).then(() => {
